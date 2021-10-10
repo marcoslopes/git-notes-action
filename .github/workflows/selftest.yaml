@@ -1,0 +1,29 @@
+name: Self Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rele
+
+jobs:
+  add-note:
+    name: test no notes action on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: checkout everything at path
+        uses: actions/checkout@v2 # accepts ref test to see if just notes will suffice
+        with:
+          path: ./test1
+          fetch-depth: 0 # https://github.com/actions/checkout#Fetch-all-history-for-all-tags-and-branches
+
+      - name: add note
+        uses: ./
+        with:
+          sha: ${{ github.sha }}

@@ -1,0 +1,43 @@
+name: 'Notes'
+description: "Show note 'message' for 'ref'(note) & 'sha' if present. Add a message for the provided sha, if 'message' is present. https://git-scm.com/docs/git-notes"
+inputs:
+  remote:
+    description: 'Remote to push'
+    default: "origin"
+  path:
+    description: 'Repository path'
+    default: "."
+  ref:
+    description: 'Note ref'
+    default: "commits"
+  sha:
+    description: 'Git object to attach note to'
+    required: true
+  message:
+    description: 'Note message'
+  name:
+    description: 'Config user.name'
+    default: "Git Notes Action"
+  email:
+    description: 'Config user.email'
+    default: "git-notes-action@users.noreply.github.com"
+runs:
+  using: "composite"
+  steps:
+    - name: add note
+      shell: bash
+      run: |
+        git config --global user.name '${{ inputs.name }}'
+        git config --global user.email '${{ inputs.email }}'
+
+        pushd "${{ inputs.path }}" 1> /dev/null
+
+        git fetch origin "refs/notes/*:refs/notes/*" || true
+        git notes --ref=${{ inputs.ref }} show ${{ inputs.sha }} 2> /dev/null 
+
+        if [[ "${{ inputs.message }}" ]]; then
+          git notes add --ref '${{ inputs.ref }}' -m '${{ inputs.message }}' "${{ inputs.sha }}"
+          git push "${{ inputs.remote }}" "refs/notes/*"
+        fi
+
+        popd 1> /dev/null
