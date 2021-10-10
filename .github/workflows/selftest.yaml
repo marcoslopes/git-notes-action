@@ -8,22 +8,77 @@ on:
       - rele
 
 jobs:
-  add-note:
-    name: test no notes action on ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-
+  # first run the note does not exists
+  get-invalid-note:
+    name: test no notes action
+    runs-on: ubuntu-latest
     steps:
-      - name: checkout everything at path
+      - name: checkout
         uses: actions/checkout@v2 # accepts ref test to see if just notes will suffice
         with:
-          path: ./test1
           fetch-depth: 0 # https://github.com/actions/checkout#Fetch-all-history-for-all-tags-and-branches
-
-      - name: add note
+      - name: get note
         uses: ./
         with:
           sha: ${{ github.sha }}
+
+  # add note
+  add-note:
+    needs:
+      - get-invalid-note
+    name: test add and push notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          path: ./backend
+      - name: add note
+        uses: ./backend
+        with:
+          path: ./backend
+          sha: ${{ github.sha }}
+          message: "message for sha: ${{ github.sha }}"
+
+  # override note
+  override-note:
+    needs:
+      - add-note
+    name: test override and push notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          path: ./backend
+      - name: override note
+        uses: ./backend
+        with:
+          path: ./backend
+          sha: ${{ github.sha }}
+          message: "overriden message for sha: ${{ github.sha }}"
+          override: true
+
+  # get note
+  get-note:
+    needs:
+      - override-note
+    name: test pull and show notes
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - id: get-note
+        name: get note
+        uses: ./
+        with:
+          sha: ${{ github.sha }}
+
+      - name: show note
+        run: |
+          echo ${{ steps.get-note.outputs.message }}

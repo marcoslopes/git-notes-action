@@ -15,28 +15,43 @@ inputs:
     required: true
   message:
     description: 'Note message'
+  override:
+    description: "Override note if 'true'"
+    default: false
   name:
     description: 'Config user.name'
     default: "Git Notes Action"
   email:
     description: 'Config user.email'
     default: "git-notes-action@users.noreply.github.com"
+outputs:
+  message:
+    description: 'Note message'
+    value: ${{ steps.note.outputs.message }}
 runs:
   using: "composite"
   steps:
-    - name: add note
-      shell: bash
+    - id: note
+      name: Note
+      shell: bash {0}
       run: |
-        git config --global user.name '${{ inputs.name }}'
-        git config --global user.email '${{ inputs.email }}'
+        pushd "${{ inputs.path }}"
 
-        pushd "${{ inputs.path }}" 1> /dev/null
+        {
+          git config user.name '${{ inputs.name }}'
+          git config user.email '${{ inputs.email }}'
+          git fetch origin "refs/notes/*:refs/notes/*" || true
+        } &> /dev/null
 
-        git fetch origin "refs/notes/*:refs/notes/*" || true
-        git notes --ref=${{ inputs.ref }} show ${{ inputs.sha }} 2> /dev/null 
+        MESSAGE="$(git notes --ref=${{ inputs.ref }} show ${{ inputs.sha }} 2> /dev/null || echo "")"
+        echo "::set-output name=message::$MESSAGE"
 
-        if [[ "${{ inputs.message }}" ]]; then
-          git notes add --ref '${{ inputs.ref }}' -m '${{ inputs.message }}' "${{ inputs.sha }}"
+        if [[ -n "${{ inputs.message }}" ]]; then
+          OVERRIDE=""
+          if [[ "${{ inputs.override }}" == "true" ]]; then
+            OVERRIDE="-f"
+          fi
+          git notes --ref '${{ inputs.ref }}' add -m '${{ inputs.message }}' "${{ inputs.sha }}" $OVERRIDE
           git push "${{ inputs.remote }}" "refs/notes/*"
         fi
 
